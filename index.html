@@ -120,7 +120,6 @@
         <div class="qr-frame">
           <div id="qrBox"></div>
         </div>
-        <div class="qr-code-text font-mono text-sm text-on-surface-variant break-all text-center px-2" id="qrCodeText">-</div>
         <div class="w-full pt-4 border-t border-surface-container flex items-center justify-center gap-2 text-xs text-on-surface-variant">
           <span class="material-symbols-outlined" style="font-size:16px;">info</span>
           画面の明るさを上げるとスキャンしやすくなります
@@ -176,8 +175,8 @@
    *   LIFF_ID    : LINE Developers コンソールで作った LIFF アプリの ID
    *   GAS_ENDPOINT: GAS Web App の /exec URL
    * ============================================================ */
-  const LIFF_ID      = '2009771008-YZzRItsD';                                  // 例: '1234567890-AbCdEfGh'
-  const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzj2hueh_Am8cDQ6pLHx_KKJ37r-_NGyDiXDXZp94XbULa7v4v4nGqjkei8ww13q-aO/exec';  // /exec で終わるURL
+  const LIFF_ID      = '2009771008-YZzRItsD';
+  const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzj2hueh_Am8cDQ6pLHx_KKJ37r-_NGyDiXDXZp94XbULa7v4v4nGqjkei8ww13q-aO/exec';
 
   const $loadingPanel  = document.getElementById('loading-panel');
   const $qrPanel       = document.getElementById('qr-panel');
@@ -185,7 +184,6 @@
   const $notfoundPanel = document.getElementById('notfound-panel');
   const $name          = document.getElementById('displayName');
   const $qrBox         = document.getElementById('qrBox');
-  const $qrText        = document.getElementById('qrCodeText');
   const $errorMessage  = document.getElementById('errorMessage');
   const $userIdInfo    = document.getElementById('userIdInfo');
 
@@ -257,9 +255,8 @@
         return;
       }
 
-      // userId / displayName を取得
+      // userId を取得（表示名はシートE列を優先するので一旦無視でOK）
       const user = await resolveUser();
-      $name.textContent = user.displayName || '';
 
       // GAS API へ問い合わせ
       const url  = GAS_ENDPOINT + '?userId=' + encodeURIComponent(user.userId);
@@ -276,8 +273,12 @@
         throw new Error(data.error || '取得に失敗しました');
       }
 
+      // 表示名は E列(name) → LINEのdisplayName → 空文字 の順で採用
+      $name.textContent = (data.name && data.name.trim())
+        ? data.name.trim()
+        : (user.displayName || '');
+
       // QR 描画
-      $qrText.textContent = data.qrText;
       await renderQr(data.qrText);
 
       showOnly($qrPanel);
