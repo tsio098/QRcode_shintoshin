@@ -10,8 +10,8 @@
 
   <!-- LIFF SDK -->
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <!-- QRコード描画ライブラリ -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <!-- QRコード描画ライブラリ（window.QRCode を提供する davidshimjs/qrcodejs） -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet"/>
@@ -176,7 +176,7 @@
    *   LIFF_ID    : LINE Developers コンソールで作った LIFF アプリの ID
    *   GAS_ENDPOINT: GAS Web App の /exec URL
    * ============================================================ */
-  const LIFF_ID      = '2009771008-YZzRItsD';                                  // 例: '1234567890-AbCdEfGh'
+  const LIFF_ID      = 'YOUR_LIFF_ID_HERE';                                  // 例: '1234567890-AbCdEfGh'
   const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzj2hueh_Am8cDQ6pLHx_KKJ37r-_NGyDiXDXZp94XbULa7v4v4nGqjkei8ww13q-aO/exec';  // /exec で終わるURL
 
   const $loadingPanel  = document.getElementById('loading-panel');
@@ -289,20 +289,20 @@
   })();
 
   /* ============================================================
-   * QR 描画（qrcode.js: canvas に書き出し）
+   * QR 描画（davidshimjs/qrcodejs: 指定要素内に <canvas>+<img> を生成）
    * ============================================================ */
   function renderQr(text) {
-    return new Promise(function(resolve, reject) {
-      $qrBox.innerHTML = '';
-      const canvas = document.createElement('canvas');
-      $qrBox.appendChild(canvas);
-
-      QRCode.toCanvas(canvas, text, {
-        width: 240,
-        margin: 1,
-        errorCorrectionLevel: 'M',
-        color: { dark: '#002045', light: '#ffffff' }
-      }, function(err) { err ? reject(err) : resolve(); });
+    if (typeof QRCode === 'undefined') {
+      throw new Error('QRライブラリの読み込みに失敗しました。\nネットワーク状況を確認して、もう一度開き直してください。');
+    }
+    $qrBox.innerHTML = '';
+    new QRCode($qrBox, {
+      text: text,
+      width: 240,
+      height: 240,
+      colorDark: '#002045',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
     });
   }
 </script>
