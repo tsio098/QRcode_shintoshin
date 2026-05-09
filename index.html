@@ -273,8 +273,10 @@
         throw new Error(data.error || '取得に失敗しました');
       }
 
-      // 表示名はシートE列の値のみを使用（LINEのdisplayNameは使わない）
-      $name.textContent = (data.name || '').trim();
+      // 表示名は E列(name) → LINEのdisplayName → 空文字 の順で採用
+      $name.textContent = (data.name && data.name.trim())
+        ? data.name.trim()
+        : (user.displayName || '');
 
       // QR 描画
       await renderQr(data.qrText);
