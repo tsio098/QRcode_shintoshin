@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>グレイトヴォヤージュ — 出席QRコード</title>
+
+  <!-- Tailwind CSS (ビルド済み) — 入塾フォームと共通 -->
+  <link rel="stylesheet" href="https://tsio098.github.io/style/styles.css"/>
+
+  <!-- LIFF SDK -->
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <!-- QRコード描画ライブラリ -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background-color: #f6faff;
+      color: #171c20;
+      min-height: 100dvh;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+
+    /* ─── パネル切替 ─── */
+    .panel { display: none; }
+    .panel.active { display: block; animation: fadeUp .35s ease; }
+    .panel.active.flex-panel { display: flex; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── QR カード ─── */
+    .qr-frame {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: inset 0 0 0 1px rgba(0,32,69,0.06);
+    }
+    #qrBox {
+      width: 240px; height: 240px;
+      display: flex; align-items: center; justify-content: center;
+      background: #fff;
+    }
+    #qrBox canvas, #qrBox img {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* ─── モバイル対応 ─── */
+    body.is-mobile { font-size: 18px !important; }
+    body.is-mobile main { padding-left: 1rem !important; padding-right: 1rem !important; }
+    body.is-mobile .page-title { font-size: 1.4rem !important; }
+    body.is-mobile #qrBox { width: 220px; height: 220px; }
+    body.is-mobile .qr-code-text { font-size: 13px !important; }
+  </style>
+
+  <script>
+    (function() {
+      function checkMobile() {
+        var w = Math.min(window.innerWidth, screen.width);
+        document.body.classList.toggle('is-mobile', w < 768);
+      }
+      if (document.body) checkMobile();
+      document.addEventListener('DOMContentLoaded', checkMobile);
+      window.addEventListener('resize', checkMobile);
+    })();
+  </script>
+</head>
+
+<body class="bg-surface text-on-surface pb-12">
+
+  <!-- ヘッダー -->
+  <header class="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md shadow-sm flex items-center justify-between px-6 py-4">
+    <div class="flex items-center">
+      <img src="https://lh3.googleusercontent.com/d/1gsyaqDZvfGt-dRsoaCoTIUxa8GGIoEZU"
+           alt="大学受験予備校 グレイトヴォヤージュ"
+           class="h-10 w-auto object-contain"/>
+    </div>
+  </header>
+
+  <main class="pt-24 px-4 max-w-3xl mx-auto">
+
+    <!-- ローディング -->
+    <div id="loading-panel" class="panel active flex-panel flex-col items-center justify-center text-center py-32 space-y-6">
+      <div class="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+      <p class="text-on-surface-variant font-medium">QRコードを読み込み中...</p>
+    </div>
+
+    <!-- 成功パネル：QR表示 -->
+    <div id="qr-panel" class="panel">
+      <div class="mb-8">
+        <div class="flex flex-col gap-1 mb-2">
+          <span class="text-tertiary font-bold tracking-widest text-sm font-headline">ATTENDANCE</span>
+          <h1 class="page-title text-2xl md:text-3xl font-extrabold text-primary font-headline leading-tight">出席用 QR コード</h1>
+        </div>
+        <p class="text-on-surface-variant text-sm leading-relaxed">受付でこの画面を提示してください。</p>
+      </div>
+
+      <!-- ユーザー名カード -->
+      <div class="bg-surface-container-low rounded-2xl p-5 mb-5 flex items-center gap-4 shadow-sm">
+        <div class="w-12 h-12 rounded-full bg-primary flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-white" style="font-variation-settings:'FILL' 1;">person</span>
+        </div>
+        <div class="min-w-0">
+          <div class="text-xs text-on-surface-variant font-medium">こんにちは</div>
+          <div class="text-base font-bold text-on-surface truncate" id="displayName">-</div>
+        </div>
+      </div>
+
+      <!-- QRコードカード -->
+      <div class="bg-white rounded-2xl shadow-md p-6 md:p-8 flex flex-col items-center gap-5">
+        <div class="qr-frame">
+          <div id="qrBox"></div>
+        </div>
+        <div class="qr-code-text font-mono text-sm text-on-surface-variant break-all text-center px-2" id="qrCodeText">-</div>
+        <div class="w-full pt-4 border-t border-surface-container flex items-center justify-center gap-2 text-xs text-on-surface-variant">
+          <span class="material-symbols-outlined" style="font-size:16px;">info</span>
+          画面の明るさを上げるとスキャンしやすくなります
+        </div>
+      </div>
+
+      <!-- 再読み込み -->
+      <div class="mt-8 flex justify-center">
+        <button onclick="location.reload()"
+          class="bg-white border border-surface-variant text-primary font-bold py-3 px-6 rounded-xl shadow-sm flex items-center gap-2 active:scale-95 transition-transform">
+          <span class="material-symbols-outlined">refresh</span>
+          最新の状態に更新
+        </button>
+      </div>
+    </div>
+
+    <!-- エラーパネル -->
+    <div id="error-panel" class="panel flex-panel flex-col items-center justify-center text-center py-16 space-y-6">
+      <div class="w-20 h-20 rounded-full bg-error/10 flex items-center justify-center mx-auto" style="background:rgba(239,68,68,0.12);">
+        <span class="material-symbols-outlined text-5xl" style="color:#dc2626; font-variation-settings:'FILL' 1;">error</span>
+      </div>
+      <div>
+        <h2 class="text-xl font-extrabold text-primary font-headline mb-2">QRコードを表示できません</h2>
+        <p class="text-on-surface-variant text-sm leading-relaxed max-w-sm mx-auto whitespace-pre-wrap" id="errorMessage">-</p>
+      </div>
+      <button onclick="location.reload()"
+        class="bg-primary text-white font-bold py-3 px-8 rounded-xl shadow-md flex items-center gap-2 active:scale-95 transition-transform">
+        <span class="material-symbols-outlined">refresh</span>
+        もう一度読み込む
+      </button>
+    </div>
+
+    <!-- 未登録パネル -->
+    <div id="notfound-panel" class="panel flex-panel flex-col items-center justify-center text-center py-16 space-y-6">
+      <div class="w-20 h-20 rounded-full bg-tertiary/15 flex items-center justify-center mx-auto" style="background:rgba(234,179,8,0.18);">
+        <span class="material-symbols-outlined text-5xl" style="color:#b45309; font-variation-settings:'FILL' 1;">help</span>
+      </div>
+      <div>
+        <h2 class="text-xl font-extrabold text-primary font-headline mb-2">登録が確認できません</h2>
+        <p class="text-on-surface-variant text-sm leading-relaxed max-w-sm mx-auto">
+          あなたの LINE アカウントに紐づく出席情報が見つかりませんでした。<br/>
+          受付スタッフまでお問い合わせください。
+        </p>
+      </div>
+      <div class="bg-surface-container-low rounded-xl px-4 py-3 text-xs text-on-surface-variant font-mono break-all max-w-sm" id="userIdInfo">-</div>
+    </div>
+
+  </main>
+
+<script>
+  /* ============================================================
+   * 設定
+   *   LIFF_ID    : LINE Developers コンソールで作った LIFF アプリの ID
+   *   GAS_ENDPOINT: GAS Web App の /exec URL
+   * ============================================================ */
+  const LIFF_ID      = 'YOUR_LIFF_ID_HERE';                                  // 例: '1234567890-AbCdEfGh'
+  const GAS_ENDPOINT = 'https://script.google.com/macros/s/XXXXXXXXX/exec';  // /exec で終わるURL
+
+  const $loadingPanel  = document.getElementById('loading-panel');
+  const $qrPanel       = document.getElementById('qr-panel');
+  const $errorPanel    = document.getElementById('error-panel');
+  const $notfoundPanel = document.getElementById('notfound-panel');
+  const $name          = document.getElementById('displayName');
+  const $qrBox         = document.getElementById('qrBox');
+  const $qrText        = document.getElementById('qrCodeText');
+  const $errorMessage  = document.getElementById('errorMessage');
+  const $userIdInfo    = document.getElementById('userIdInfo');
+
+  function showOnly(panel) {
+    [$loadingPanel, $qrPanel, $errorPanel, $notfoundPanel].forEach(function(p) {
+      p.classList.remove('active');
+    });
+    panel.classList.add('active');
+  }
+
+  /* ============================================================
+   * メイン処理
+   * ============================================================ */
+  (async function main() {
+    try {
+      if (!LIFF_ID || LIFF_ID.indexOf('YOUR_LIFF_ID') === 0) {
+        throw new Error('LIFF_ID が未設定です。\nindex.html の LIFF_ID を書き換えてください。');
+      }
+
+      await liff.init({ liffId: LIFF_ID });
+
+      // LINE 未ログインなら LINE ログインへ
+      if (!liff.isLoggedIn()) {
+        liff.login({ redirectUri: location.href });
+        return;
+      }
+
+      // プロフィール取得
+      const profile = await liff.getProfile();
+      $name.textContent = profile.displayName || '';
+
+      // GAS API へ問い合わせ
+      const url  = GAS_ENDPOINT + '?userId=' + encodeURIComponent(profile.userId);
+      const res  = await fetch(url, { redirect: 'follow' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+
+      if (!data.ok) {
+        if (data.error === 'not_found') {
+          $userIdInfo.textContent = 'userId: ' + (data.userId || profile.userId);
+          showOnly($notfoundPanel);
+          return;
+        }
+        throw new Error(data.error || '取得に失敗しました');
+      }
+
+      // QR 描画
+      $qrText.textContent = data.qrText;
+      await renderQr(data.qrText);
+
+      showOnly($qrPanel);
+    } catch (err) {
+      console.error(err);
+      $errorMessage.textContent = (err && err.message) ? err.message : String(err);
+      showOnly($errorPanel);
+    }
+  })();
+
+  /* ============================================================
+   * QR 描画（qrcode.js: canvas に書き出し）
+   * ============================================================ */
+  function renderQr(text) {
+    return new Promise(function(resolve, reject) {
+      $qrBox.innerHTML = '';
+      const canvas = document.createElement('canvas');
+      $qrBox.appendChild(canvas);
+
+      QRCode.toCanvas(canvas, text, {
+        width: 240,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#002045', light: '#ffffff' }
+      }, function(err) { err ? reject(err) : resolve(); });
+    });
+  }
+</script>
+
+</body>
+</html>
