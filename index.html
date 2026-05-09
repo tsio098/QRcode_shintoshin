@@ -197,6 +197,50 @@
   }
 
   /* ============================================================
+   * userId / displayName の取得（スコープ依存を回避）
+   *   1. openid スコープがあれば ID トークンから sub を取得
+   *   2. それで取れなければ profile スコープで getProfile()
+   *   3. どちらも無理ならスコープ追加のお願いを表示
+   * ============================================================ */
+  async function resolveUser() {
+    let userId = '';
+    let displayName = '';
+
+    // (1) ID トークンから取得（openid スコープ）
+    try {
+      if (typeof liff.getDecodedIDToken === 'function') {
+        const payload = liff.getDecodedIDToken();
+        if (payload && payload.sub) {
+          userId = payload.sub;
+          displayName = payload.name || '';
+        }
+      }
+    } catch (e) { /* noop */ }
+
+    // (2) getProfile()（profile スコープ）
+    if (!userId) {
+      try {
+        const profile = await liff.getProfile();
+        userId = profile.userId;
+        displayName = profile.displayName || displayName;
+      } catch (e) {
+        // スコープ未付与のときに来る（"The permission is not in LIFF app scope." 等）
+        throw new Error(
+          'LINE のユーザー情報が取得できません。\n' +
+          'LIFF アプリの「Scopes（スコープ）」に\n' +
+          '  ・profile\n  ・openid\n' +
+          'のいずれかを有効にしてください。\n\n' +
+          '【設定手順】\n' +
+          'LINE Developers コンソール → 対象チャネル → LIFF →\n' +
+          '当アプリを編集 → Scopes で profile にチェック → 更新'
+        );
+      }
+    }
+
+    return { userId, displayName };
+  }
+
+  /* ============================================================
    * メイン処理
    * ============================================================ */
   (async function main() {
@@ -213,19 +257,19 @@
         return;
       }
 
-      // プロフィール取得
-      const profile = await liff.getProfile();
-      $name.textContent = profile.displayName || '';
+      // userId / displayName を取得
+      const user = await resolveUser();
+      $name.textContent = user.displayName || '';
 
       // GAS API へ問い合わせ
-      const url  = GAS_ENDPOINT + '?userId=' + encodeURIComponent(profile.userId);
+      const url  = GAS_ENDPOINT + '?userId=' + encodeURIComponent(user.userId);
       const res  = await fetch(url, { redirect: 'follow' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
 
       if (!data.ok) {
         if (data.error === 'not_found') {
-          $userIdInfo.textContent = 'userId: ' + (data.userId || profile.userId);
+          $userIdInfo.textContent = 'userId: ' + (data.userId || user.userId);
           showOnly($notfoundPanel);
           return;
         }
